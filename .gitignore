@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Entorno virtual
+venv/
+.venv/
+env/
+
+# Variables de entorno y tokens
+.env
+*.env
+
+# Checkpoints de entrenamiento (van a Hugging Face Hub, no a GitHub)
+checkpoints/
+*.ckpt
+*.pt
+*.bin
+wandb/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints/
+
+# MySQL data (Docker volume)
+mysql_data/
+
+# Archivos grandes temporales
+*.tar.xz
+*.zip
+datos/spider/
+
