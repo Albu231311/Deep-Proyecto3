@@ -1,0 +1,33 @@
+# MySQL 8.4.10 para el proyecto Text-to-SQL
+# Levantar con: docker compose up -d
+# Detener con:  docker compose down
+# Ver logs:     docker compose logs mysql
+
+services:
+  mysql:
+    image: mysql:8.4.10
+    container_name: text2sql_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root2026
+      # Usuario de solo lectura para el evaluador (simula al docente)
+      MYSQL_USER: evaluador
+      MYSQL_PASSWORD: eval2026
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      # Scripts de inicialización se ejecutan al crear el contenedor
+      - ./datos/init_sql:/docker-entrypoint-initdb.d
+    command:
+      # MySQL 8.4 usa caching_sha2_password por defecto (OK para mysql-connector-python)
+      # ONLY_FULL_GROUP_BY ya viene activado por defecto en MySQL 8.4
+      - --sql-mode=ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot2026"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  mysql_data:
