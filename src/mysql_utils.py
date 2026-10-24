@@ -42,7 +42,7 @@ def get_readonly_connection(database: str) -> mysql.connector.MySQLConnection:
 
 # Función ejecutar() — réplica del evaluador del docente
 
-def ejecutar(sql: str, database: str) -> dict:
+def ejecutar(sql: str, database: str, max_filas: int | None = 10) -> dict:
     """
     Ejecuta una consulta SQL con el usuario de solo lectura.
 
@@ -58,7 +58,8 @@ def ejecutar(sql: str, database: str) -> dict:
     dict con:
         - ok (bool): True si la consulta se ejecutó sin errores.
         - columnas (list[str] | None): nombres de las columnas del resultado.
-        - filas (list[list] | None): máximo 10 filas del resultado.
+        - filas (list[list] | None): máximo `max_filas` filas del resultado
+          (10, como el ejecutar() del docente; None = todas, para comparar en el evaluador).
         - error (str | None): mensaje de error si ok es False.
     """
     conn = None
@@ -69,7 +70,7 @@ def ejecutar(sql: str, database: str) -> dict:
         cursor.execute(sql)
 
         columnas = [desc[0] for desc in cursor.description] if cursor.description else []
-        filas = cursor.fetchmany(10)
+        filas = cursor.fetchall() if max_filas is None else cursor.fetchmany(max_filas)
         # Convertir a listas simples (en lugar de tuplas) para facilitar la comparación
         filas = [list(fila) for fila in filas]
 

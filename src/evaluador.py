@@ -157,8 +157,10 @@ def evaluar_pregunta(
     # - categoria_error (str o None)
     # - resultado_pred (dict)
     # - resultado_ref (dict)
-    resultado_ref = ejecutar(sql_ref, database)
-    resultado_pred = ejecutar(sql_pred, database)
+    # Resultado completo: con solo 10 filas, dos consultas sin ORDER BY pueden
+    # devolver subconjuntos distintos del mismo resultado (9 de las 40 preguntas tienen > 10 filas)
+    resultado_ref = ejecutar(sql_ref, database, max_filas=None)
+    resultado_pred = ejecutar(sql_pred, database, max_filas=None)
 
     # Si la referencia falla, hay un error en el test, no en la predicción
     if not resultado_ref["ok"]:
