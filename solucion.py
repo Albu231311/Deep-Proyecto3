@@ -141,8 +141,11 @@ def generar_sql(esquema: str, pregunta: str, ejecutar=None) -> str:
     return sql if es_solo_lectura(sql) else SQL_RESPALDO
 
 
-# El modelo se carga al importar (límite de 5 min), no en la primera pregunta (límite de 30 s)
-cargar_modelo()
+# El modelo se carga al importar (límite de 5 min), no en la primera pregunta (límite de 30 s).
+# Los notebooks de evaluación definen SOLUCION_NO_CARGAR=1 para llamar a cargar_modelo() con
+# cada configuración (baseline, r8, r32); el evaluador del docente no la define.
+if os.environ.get("SOLUCION_NO_CARGAR") != "1":
+    cargar_modelo()
 
 
 if __name__ == "__main__":
