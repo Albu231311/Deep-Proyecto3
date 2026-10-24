@@ -87,3 +87,24 @@
 - Integración de la evaluación con simulación de baseline perfecto sobre `val.jsonl` obteniendo EX ponderado = 1.0 (100%).
 - Redacción completa del `README.md` del repositorio: guía de despliegue en Docker, reproducibilidad del pipeline de datos, licencias (Spider CC BY-SA 4.0, Qwen Apache 2.0) y declaración ética de uso de IA.
 - Actualización de `CONTRIBUCIONES.md` reflejando todas las entregas de Carlos Alburez completadas y listas para la fase de entrenamiento de Erick Guerra.
+
+---
+
+## Entrada 7 — Erick Guerra — Sábado 24 de octubre de 2026
+
+**Tareas realizadas:**
+- Creación de `config.json` con la forma exigida (`Qwen/Qwen2.5-Coder-1.5B-Instruct`, `adapter/`, `usar_adapter`, semilla 2026).
+- Implementación de `src/prompt.py`: prompt único (system + esquema + pregunta) usado igual en entrenamiento, inferencia con adapter y baseline. `limpiar_esquema()` quita `ENGINE`, `CHARSET`, `COLLATE` y `AUTO_INCREMENT` de la salida de `SHOW CREATE TABLE` (~25 % menos caracteres) sin perder columnas, llaves ni `COMMENT`.
+- Implementación de `src/filtro.py`: `es_solo_lectura()` (solo un `SELECT` o `WITH ... SELECT`, sin palabras de modificación fuera de strings/comentarios, sin múltiples sentencias ni `/*! */`) y `limpiar_salida()` (quita markdown, explicaciones y `;` final). `tests/test_filtro.py` con 40 casos aprobados; además, el filtro acepta las 2,469 consultas de referencia de entrenamiento y validación (0 falsos rechazos).
+- Implementación de `solucion.py` con `generar_sql(esquema, pregunta, ejecutar=None)`: carga al importar, `float16` en GPU, generación greedy (`do_sample=False`), adapter LoRA fusionado con `merge_and_unload()`, autocorrección con `ejecutar` (máx. 3 llamadas, corte de seguridad a los 20 s) y respaldo `SELECT 1` si la salida no es de solo lectura.
+- Creación de `notebooks/02_entrenamiento.ipynb` (enmascarado del prompt en la loss, curvas y métricas en `resultados/curvas_loss/`).
+
+**Hipótesis (escritas antes de entrenar). Factor que varía: rango `r` (8 vs 32, `alpha = 2r`):**
+- **H1:** `r = 32` (4× parámetros entrenables) bajará más rápido la loss de entrenamiento.
+- **H2:** con ~2.4k pares y esquemas de evaluación distintos, la diferencia de EX en la validación propia será pequeña (≤ 5 puntos); si la loss de validación de `r = 32` se estanca o sube, `r = 8` generalizará igual o mejor.
+- **H3:** si `r = 32` gana, la ganancia estará en preguntas difíciles (subconsultas, `WITH`, ventanas).
+- **H4:** el tiempo de entrenamiento de `r = 32` será solo ≈ 10–20 % mayor.
+
+**Decisiones tomadas:**
+- La loss se calcula solo sobre la consulta SQL (+ `<|im_end|>`), con los tokens del prompt enmascarados (`-100`).
+- Para graficar la loss de validación se retiene ~5 % de las bases de entrenamiento (partición por `db_id`); la validación propia de 40 preguntas solo se usa para medir EX.
