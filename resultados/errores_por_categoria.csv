@@ -1,5 +1,6 @@
 version,columna_inexistente,join_incorrecto,resultado_distinto,total
 baseline,3,0,4,7
+lora_r32,11,0,5,16
 lora_r8,10,1,5,16
 lora_r8_autocorreccion,10,1,5,16
-total,23,2,14,39
+total,34,2,19,55
