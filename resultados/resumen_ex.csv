@@ -1,2 +1,4 @@
 version,EX,EX_facil,EX_media,EX_dificil,aciertos,errores_de_ejecucion,tiempo_medio_s,tiempo_max_s,mejora_vs_baseline
 baseline,0.7467,1.0,0.8667,0.5,33/40,2,2.13,6.1,0.0
+lora_r8,0.4667,1.0,0.4667,0.2,24/40,6,1.4,3.15,-0.28
+lora_r8_autocorreccion,0.4667,1.0,0.4667,0.2,24/40,6,1.9,7.2,-0.28
