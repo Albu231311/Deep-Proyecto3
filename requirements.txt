@@ -1,16 +1,17 @@
 # requirements.txt — Proyecto 3: Text-to-SQL con LoRA
 # Versiones fijadas para reproducibilidad en Colab T4
 
-# ── Modelo y entrenamiento ──
+# ── Modelo e inferencia ──
+# torch NO se fija: se usa el que trae Colab (ya compilado para su CUDA).
+# transformers, peft y accelerate SÍ se fijan: son las versiones con las que se
+# entrenó (Kaggle T4) y se evaluó; versiones nuevas ya rompieron la carga
+# del adapter una vez (ver src/compat.py).
 torch>=2.1.0
-transformers>=4.40.0
-peft>=0.10.0
-accelerate>=0.28.0
-bitsandbytes>=0.43.0
-datasets>=2.18.0
-trl>=0.8.0
+transformers==5.20.2
+peft==0.21.2
+accelerate==1.15.0
 
-# ── MySQL ──
+# ── MySQL (evaluación local) ──
 mysql-connector-python>=8.3.0
 
 # ── Datos ──
