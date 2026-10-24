@@ -79,6 +79,8 @@ def cargar_modelo(usar_adapter=None, adapter=None, config_path=None) -> None:
 
     if usar_adapter:
         from peft import PeftModel
+        from src.compat import parchear_torchao
+        parchear_torchao()
         modelo = PeftModel.from_pretrained(modelo, adapter)
         # Fusionar los pesos LoRA: misma salida, inferencia más rápida
         modelo = modelo.merge_and_unload()
