@@ -108,3 +108,59 @@
 **Decisiones tomadas:**
 - La loss se calcula solo sobre la consulta SQL (+ `<|im_end|>`), con los tokens del prompt enmascarados (`-100`).
 - Para graficar la loss de validación se retiene ~5 % de las bases de entrenamiento (partición por `db_id`); la validación propia de 40 preguntas solo se usa para medir EX.
+
+---
+
+## Entrada 8 — Erick Guerra — Sábado 24 de octubre de 2026
+
+**Tareas realizadas:**
+- Primer entrenamiento de `r = 8` en Colab T4 (desde la extensión de VS Code). Se resolvieron tres problemas de entorno:
+  - `peft 0.21` lanza `ImportError` con el `torchao 0.10` preinstalado en Colab, aunque no se use cuantización. Se creó `src/compat.py` (`parchear_torchao()`), que también protege a `solucion.py` en el Colab del docente.
+  - `transformers 5.x` eliminó `warmup_ratio` y renombró `group_by_length` → `train_sampling_strategy`; el notebook detecta la versión.
+  - `CUDA out of memory`: con batch 4 los logits (4 × 2048 tokens × 151,936 de vocabulario, fp32) ocupaban ~4.6 GB. Se pasó a batch 2 × 8 de acumulación (**batch efectivo 16 sin cambios**).
+- La corrida de `r = 8` terminó (67.7 min) pero **se perdió**: se agotaron las unidades de cómputo de Colab antes de guardar el adapter. Quedó registrada la curva: loss de validación mínima en el paso 100 (0.111) y luego subiendo hasta 0.142, con la de entrenamiento bajando a 0.045 → sobreajuste en la segunda época.
+- Se migró el entrenamiento a **Kaggle (T4)** con "Save & Run All" (corre en segundo plano). El notebook 02 entrena `r = 8` y `r = 32` en una sola corrida y **sube a GitHub cada adapter apenas termina**, para no volver a perder trabajo.
+- Adapters guardados en `float16`: `r = 32` en `float32` pesaría ~148 MB (> 100 MB permitidos); en `float16` pesa 73.9 MB.
+
+**Decisiones tomadas:**
+- Mismo hardware (una sola T4, también en Kaggle que ofrece dos) para que los tiempos de ambas configuraciones sean comparables.
+
+---
+
+## Entrada 9 — Erick Guerra — Sábado 24 de octubre de 2026
+
+**Tareas realizadas:**
+- Entorno local de evaluación con la RTX 4060 (PyTorch CUDA en `.venv`) y MySQL 8.4.10 en Docker. `solucion.py` probado con el modelo real: carga en 7–13 s (límite 300 s) y 2–6 s por pregunta (límite 30 s). **Determinismo verificado**: dos generaciones de las mismas preguntas son idénticas.
+- **Corrección del evaluador:** `ejecutar()` devuelve máximo 10 filas (contrato del docente) y el evaluador comparaba solo esas 10. 9 de las 40 preguntas devuelven más de 10 filas, y sin `ORDER BY` dos consultas equivalentes pueden devolver subconjuntos distintos. Se agregó `max_filas` a `ejecutar()` y el evaluador ahora compara el resultado completo.
+- Baseline (modelo sin adapter): **EX = 0.387**. El análisis de errores mostró que **18 de los 23 errores** eran consultas razonables que no devolvían las columnas esperadas (p. ej. "¿Qué profesores tienen grado de Doctorado?" esperaba `nombre, email`), porque **nuestras preguntas no indicaban qué columnas devolver**, a diferencia de la evaluación oculta ("cada pregunta indica qué columnas devolver").
+- Se reescribió el texto de las 40 preguntas para que indiquen las columnas ("Devuelve las columnas: nombre, email."), **sin modificar las consultas de referencia ni las columnas esperadas**. En `val_33` y `val_36` además se aclaró en el texto un filtro que la referencia ya aplicaba (solo citas Completadas). Baseline con las preguntas corregidas: **EX = 0.747** (fácil 1.00, media 0.87, difícil 0.50).
+
+**Decisiones tomadas:**
+- Se reportan ambos valores del baseline (0.387 con las preguntas originales y 0.747 con las corregidas) para dejar transparente el cambio, hecho después de ver el primer resultado.
+
+---
+
+## Entrada 10 — Erick Guerra — Sábado 24 de octubre de 2026
+
+**Resultados del experimento LoRA (dataset v1, Kaggle T4):**
+
+| Config | Parámetros entrenables | Tiempo | Loss train final | Loss val (mín / final) | EX validación propia |
+|---|---|---|---|---|---|
+| Baseline (sin adapter) | — | — | — | — | **0.747** |
+| r = 8, alpha = 16 | 9,232,384 (0.59 %) | 58.3 min | 0.045 | 0.111 / 0.143 | 0.467 |
+| r = 32, alpha = 64 | 36,929,536 (2.34 %) | 58.8 min | 0.027 | 0.123 / 0.153 | 0.467 |
+
+**Contraste con las hipótesis (Entrada 7):**
+- **H1 confirmada:** `r = 32` llega a una loss de entrenamiento más baja (0.027 vs 0.045).
+- **H2 confirmada:** el EX es idéntico (0.467); `r = 32` sobreajusta más (loss de validación final 0.153 vs 0.143). En ambas la loss de validación toca su mínimo en el paso 100 (~0.7 épocas) y sube después.
+- **H3 no aplica:** `r = 32` no gana en ningún nivel.
+- **H4 refutada (a favor):** `r = 32` tarda solo +1 % (58.8 vs 58.3 min), menos que el 10–20 % previsto.
+
+**Experimento de inferencia (autocorrección con `ejecutar`, sobre r = 8):** no cambió el EX (0.467). En las 6 preguntas cuya consulta fallaba se usaron las 3 llamadas, pero el modelo repitió la misma consulta en cada intento.
+
+**Análisis:** ambos adapters quedan **0.28 por debajo del baseline**. 10–11 de sus 16 errores son de columnas: aprendieron el estilo de Spider (alias `T1`/`T2`, expresiones sin nombre como `AVG(x)`) e **ignoran la indicación de columnas**, que nunca aparece en las preguntas de Spider. Con el dataset v1 el rango no importa: el cuello de botella son los datos, no la capacidad del adapter.
+
+**Decisión: dataset v2** (`src/aumentar_columnas.py` → `datos/entrenamiento/train_v2.jsonl`, sin modificar `train.jsonl`):
+- A cada pregunta se le agrega qué columnas devolver, con 5 redacciones distintas para no depender de una sola frase.
+- A las expresiones sin nombre del SELECT exterior se les pone alias (`COUNT(*) AS cantidad`, `AVG(hours) AS promedio_hours`) y las columnas repetidas se renombran con su tabla. 761 de 2,429 consultas cambiaron; **cada una se volvió a ejecutar en MySQL 8.4.10** sobre bases creadas con su `SHOW CREATE TABLE`, y los nombres de columna se tomaron de lo que devuelve MySQL.
+- Se reentrenan `r = 8` y `r = 32` con v2 (notebook 02b, mismos hiperparámetros) guardando también el adapter de la época 1, para decidir con EX si conviene 1 o 2 épocas.
