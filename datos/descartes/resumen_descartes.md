@@ -61,3 +61,17 @@
 - **Consulta MySQL transpilada:** `SELECT DISTINCT t3.paperid FROM writes AS t3 JOIN author AS t2 ON t3.authorid = t2.authorid JOIN writes AS t4 ON t4.paperid = t3.paperid JOIN author AS t1 ON t4.authorid = t1.authorid WHERE t2.authorname = `Peter Mertens` AND t1.authorname = `Dina Barbian``
 - **Error MySQL:** `1146 (42S02): Table 'spider_scholar.writes' doesn't exist`
 
+
+---
+
+## Descartes de los datasets v2 y v3
+
+Los datasets v2 y v3 parten de los 2,429 pares aceptados arriba; las consultas que se modificaron se volvieron a ejecutar en MySQL 8.4.10.
+
+| Paso | Script | Consultas ejecutadas | Fallaron | Qué se hizo |
+|---|---|---|---|---|
+| v2: alias a expresiones del SELECT (`COUNT(*) AS cantidad`) | `src/aumentar_columnas.py` | 761 modificadas | 0 | Si una reescritura fallara, se conserva la consulta original (ya validada); no se pierde el par |
+| v3: alias legibles en lugar de `T1`/`T2` | `src/generar_v3.py` | 784 modificadas | 0 | Igual: si fallara, se conserva la original |
+| v3: 460 pares propios sobre 12 esquemas (generados con LLM) | `src/generar_v3.py` | 460 | **0** | Los que fallan van a `descartes_v3.jsonl`; quedó **vacío** porque todos ejecutaron |
+
+Los pares propios se ejecutaron sobre cada esquema de `datos/esquemas_propios/` cargado como la base `propio_<nombre>` y poblado con datos sintéticos (40 filas por tabla, respetando enums, llaves foráneas y fechas 2022–2026). 9 de los 460 devuelven 0 filas por los datos aleatorios, pero ejecutan sin error, así que se conservan.
