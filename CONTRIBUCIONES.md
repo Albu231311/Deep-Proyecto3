@@ -40,6 +40,7 @@
 | `notebooks/correr_solucion.ipynb` (entorno limpio + MySQL) | Erick Guerra | **Completado** | `433ee48 feat: notebook de prueba de la entrega en entorno limpio con MySQL 8.4.10` |
 | Bitácora, entradas 7–12 | Erick Guerra | **Completado** | `700099d`, `779e157` y commit de entradas 11–12 |
 | Dataset v3 entrenado y adapter final (r8_v3, EX 0.800) | Erick Guerra | **Completado** | `fd5470e`, `e1e4387`, `079cab4` y commit del adapter final |
-| `presentacion.pdf` (≤12 diapositivas) | Erick Guerra | *En progreso* | Se sube al final |
-| Prueba final en Colab T4 limpio (`correr_solucion.ipynb`) | Ambos | *Pendiente* | Por realizar conjuntamente |
-| `historial_git.txt` final | Carlos Alburez | *Pendiente* | Al cierre previo a la entrega |
+| `presentacion.pdf` (≤12 diapositivas) | Erick Guerra | **Completado** | `a9ecd8a docs: historial de git y presentación final` |
+| Prueba final en Colab T4 limpio (`correr_solucion.ipynb`) | Ambos | **Completado** | `433ee48 feat: notebook de prueba de la entrega en entorno limpio con MySQL 8.4.10` |
+| `historial_git.txt` final | Carlos Alburez | **Completado** | `a9ecd8a` y regenerado a UTF-8 previo al empaquetado |
+
