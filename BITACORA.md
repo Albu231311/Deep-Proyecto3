@@ -164,3 +164,57 @@
 - A cada pregunta se le agrega qué columnas devolver, con 5 redacciones distintas para no depender de una sola frase.
 - A las expresiones sin nombre del SELECT exterior se les pone alias (`COUNT(*) AS cantidad`, `AVG(hours) AS promedio_hours`) y las columnas repetidas se renombran con su tabla. 761 de 2,429 consultas cambiaron; **cada una se volvió a ejecutar en MySQL 8.4.10** sobre bases creadas con su `SHOW CREATE TABLE`, y los nombres de columna se tomaron de lo que devuelve MySQL.
 - Se reentrenan `r = 8` y `r = 32` con v2 (notebook 02b, mismos hiperparámetros) guardando también el adapter de la época 1, para decidir con EX si conviene 1 o 2 épocas.
+
+---
+
+## Entrada 11 — Erick Guerra — Sábado 24 de octubre de 2026
+
+**Resultados del dataset v2 (notebook 02b, Kaggle T4, 2,357 ejemplos de entrenamiento y 70 de loss de validación):**
+
+| Config | Tiempo | Loss train final | Loss val (mín / final) | EX época 1 | EX época 2 |
+|---|---|---|---|---|---|
+| Baseline (sin adapter) | — | — | — | — | **0.747** |
+| r = 8, alpha = 16 | 59.7 min | 0.037 | 0.100 / 0.108 | 0.480 | 0.520 |
+| r = 32, alpha = 64 | 60.3 min | 0.024 | 0.107 / 0.110 | 0.467 | 0.520 |
+
+- La indicación de columnas ayudó (+5 puntos frente a v1, medias 0.47 → 0.60), pero ambos adapters siguen **0.23 por debajo del baseline**. La segunda época mejora el EX aunque la loss de validación suba un poco.
+- Autocorrección con `ejecutar` sobre r8_v2: EX igual (0.520), 0 preguntas arregladas y 0 empeoradas; 34 preguntas usaron 1 llamada, 1 usó 2 y 5 usaron 3 (tiempo máximo 10.3 s, dentro del límite de 30 s).
+
+**Diagnóstico pregunta por pregunta (r8_v2 frente al baseline):** el adapter **rompe 8 preguntas que el modelo base acertaba y arregla solo 1** (val_37):
+- Alias `T1`/`T2`/`T3` de Spider que confunden las tablas: val_14, val_16, val_29 y val_38.
+- Sin funciones de fecha (Spider no las tiene): calcula `2026 - fecha_nac` en vez de `TIMESTAMPDIFF` en val_20 y val_40.
+- JOIN y GROUP BY más pobres: val_12 y val_34.
+
+Conclusión: el fine-tuning le está quitando al modelo cosas que ya sabía, porque Spider tiene un estilo (alias opacos, SQL simple, sin fechas) muy distinto de la evaluación (MySQL, fechas, `WITH`, ventanas, nombres en español/inglés/abreviados).
+
+**Decisión: dataset v3** (`src/generar_v3.py` → `datos/entrenamiento/train_v3.jsonl`, 3,349 ejemplos):
+- **Alias legibles en Spider:** `T1`/`T2` se reemplazan por abreviaturas del nombre de la tabla (`student_course` → `sc`). 784 consultas reescritas y re-ejecutadas en MySQL 8.4.10; ninguna falló.
+- **12 esquemas propios** (`datos/esquemas_propios/*.sql`, 6–7 tablas con `COMMENT`) con nombres en español (tienda_online, biblioteca, restaurante, banco, gimnasio, inmobiliaria, eventos), inglés (aerolinea, hotel) y abreviados (rrhh, logistica, taller), y **460 pares** (114 fáciles, 141 medios, 205 difíciles) generados con ayuda de un LLM y revisados: fechas (`TIMESTAMPDIFF`, `DATEDIFF`, `DATE_FORMAT`, `YEAR`/`MONTH`), `WITH`, ventanas (`RANK`, `ROW_NUMBER`, `LAG`, acumulados) y subconsultas correlacionadas.
+- **Validación por ejecución:** cada esquema se cargó en MySQL 8.4.10 como `propio_<nombre>` y se pobló con datos sintéticos (respetando enums, llaves foráneas, fechas 2022–2026 y NULL en columnas opcionales). Los 460 pares ejecutaron: **0 descartes** (9 devuelven vacío por los datos aleatorios, pero son SQL válido).
+- Cada par propio entra 2 veces con distinta redacción de la indicación de columnas (920 ejemplos) para darle peso frente a los 2,429 de Spider.
+- `src/chequeo_fuga.py` sobre v3: ningún esquema ni tabla de validación aparece en el entrenamiento.
+- Se reentrenan r = 8 y r = 32 con v3 (notebook 02c), mismos hiperparámetros. **H5** (escrita antes de entrenar, en el notebook 02c): con v3 el adapter deja de romper lo que el base acierta e iguala o supera el baseline (0.747).
+
+---
+
+## Entrada 12 — Erick Guerra — Domingo 25 de octubre de 2026
+
+**Resultados del dataset v3 (notebook 02c, Kaggle T4, 3,191 ejemplos de entrenamiento y 158 de loss de validación):**
+
+| Config | Tiempo | Loss train final | Loss val (mín / final) | EX época 1 | EX época 2 |
+|---|---|---|---|---|---|
+| Baseline (sin adapter) | — | — | — | — | 0.747 |
+| r = 8, alpha = 16 | 95.3 min | 0.026 | 0.113 / 0.115 | 0.707 | **0.800** |
+| r = 32, alpha = 64 | 96.1 min | 0.017 | 0.101 / 0.101 | 0.720 | **0.800** |
+
+- **H5 confirmada:** ambos adapters v3 superan al baseline (0.800 vs 0.747, +0.053). Por nivel: fácil 1.00, media 0.80, difícil 0.70 (baseline: 1.00 / 0.87 / 0.50). Es la primera vez que el LoRA supera al modelo base.
+- Frente al baseline, r8_v3 gana 3 difíciles (val_19, val_37, val_39: fechas, `WITH` y ventanas) y pierde 2 (val_34 media y val_38 difícil). Los alias `T1`/`T2` desaparecieron de las predicciones.
+- **H1–H4 con los tres datasets:** H1 confirmada (r = 32 siempre baja más la loss de entrenamiento); H2 confirmada (r = 8 y r = 32 empatan en EX en v1, v2 y v3); H3 no aplica (r = 32 nunca gana); H4 refutada a favor (r = 32 tarda solo +1 %).
+- La época 2 vuelve a ser igual o mejor en EX que la época 1, aunque la loss de validación casi no cambie.
+- Autocorrección con `ejecutar` sobre r8_v3: EX igual (0.800); 37 preguntas con 1 llamada y 3 con 3 llamadas, 0 arregladas. Tiempo máximo 20.2 s (bajo el límite de 30 s gracias al corte a los 20 s).
+
+**Decisión: adapter final = r8_v3** (copiado a `adapter/`, `usar_adapter: true`). Empata con r32_v3 en EX y, según la regla de desempate del notebook 03, se elige el adapter más pequeño (18.5 MB frente a 73.9 MB). r32_v3 tiene menos consultas que no ejecutan (1 frente a 3), pero sus errores pasan a ser de JOIN y no cambia el EX.
+
+**Prueba de la entrega:** `solucion.py` cargado tal como lo hará el docente (`config.json` + `adapter/`) dio EX 0.800 en las 40 preguntas, con salida idéntica en dos corridas (determinista).
+
+**Predicción para la evaluación oculta** (diapositiva 12): EX ≈ 0.70 con adapter y mejora ≈ +0.04. Es menor que en la validación propia porque elegimos el dataset mirando esa validación (sesgo optimista), porque el IC 95 % pareado de la mejora en 40 preguntas es amplio [−0.11, +0.22] y porque los esquemas ocultos son más grandes y tienen nombres abreviados o en inglés.
