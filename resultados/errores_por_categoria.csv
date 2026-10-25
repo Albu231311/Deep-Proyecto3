@@ -1,6 +1,10 @@
-version,columna_inexistente,join_incorrecto,resultado_distinto,total
-baseline,3,0,4,7
-lora_r32,11,0,5,16
-lora_r8,10,1,5,16
-lora_r8_autocorreccion,10,1,5,16
-total,34,2,19,55
+version,columna_inexistente,join_incorrecto,resultado_distinto,sintaxis,total
+baseline,3,0,4,0,7
+lora_r32,11,0,5,0,16
+lora_r32_v2,6,0,7,1,14
+lora_r32_v2_ep1,6,0,10,0,16
+lora_r8,10,1,5,0,16
+lora_r8_v2,6,0,8,0,14
+lora_r8_v2_autocorreccion,5,0,9,0,14
+lora_r8_v2_ep1,5,1,9,0,15
+total,52,2,57,1,112
